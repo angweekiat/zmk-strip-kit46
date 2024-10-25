@@ -521,6 +521,8 @@ ZMK_SUBSCRIPTION(combo, zmk_position_state_changed);
 ZMK_SUBSCRIPTION(combo, zmk_keycode_state_changed);
 
 #define COMBO_INST(n)                                                                              \
+    BUILD_ASSERT(DT_PROP_LEN(n, key_positions) <= CONFIG_ZMK_COMBO_MAX_KEYS_PER_COMBO,              \
+        "Combo key position count exceeds CONFIG_ZMK_COMBO_MAX_KEYS_PER_COMBO");                         \
     static struct combo_cfg combo_config_##n = {                                                   \
         .timeout_ms = DT_PROP(n, timeout_ms),                                                      \
         .require_prior_idle_ms = DT_PROP(n, require_prior_idle_ms),                                \
@@ -534,6 +536,11 @@ ZMK_SUBSCRIPTION(combo, zmk_keycode_state_changed);
     };
 
 #define INITIALIZE_COMBO(n) initialize_combo(&combo_config_##n);
+
+// Able to get this as `static int all_combo_lengths[] { 3, 8, 9 };`, but can't find a nice
+// scalable way to identify highest length out of n combos
+#define KEY_POS_LEN(node_id) DT_PROP_LEN(node_id, key_positions),
+static int all_combo_lengths[] = {DT_FOREACH_CHILD(DT_DRV_INST(0), KEY_POS_LEN)};
 
 DT_INST_FOREACH_CHILD(0, COMBO_INST)
 
