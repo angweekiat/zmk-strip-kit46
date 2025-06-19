@@ -1,0 +1,175 @@
+west build -d build/right -p  -b nice_nano_v2 --  -DSHIELD=kit46_right -DZMK_CONFIG="/home/weekiat.ang/Desktop/public/zmk-config-kit46/boards/shields/kit46"
+
+west build -d build/left -p  -b nice_nano_v2 --  -DSHIELD=kit46_left -DZMK_CONFIG="/home/weekiat.ang/Desktop/public/zmk-config-kit46/boards/shields/kit46"
+
+
+west build -d build/right -p  -b nice_nano_v2 --  -DSHIELD=kit46_right
+
+west build -d build/right -b nice_nano_v2 --  -DSHIELD=kit46_right
+
+# pristine no logs
+west build -d build/left -p  -b nice_nano_v2 --  -DSHIELD=kit46_left
+
+west build -p  -d build/left  -b nice_nano_v2 -S zmk-usb-logging    --  -DSHIELD=kit46_left
+west build -d build/left  -b nice_nano_v2 -S zmk-usb-logging    --  -DSHIELD=kit46_left
+
+west build -p  -d build/right  -b nice_nano_v2 -S zmk-usb-logging    --  -DSHIELD=kit46_right
+
+west build  -d build/left  -b nice_nano_v2    --  -DSHIELD=kit46_left && cp ./build/left/zephyr/zmk.uf2 /media/weekiat.ang/NICENANO/
+# pristine with logs
+west build -p  -d build/left  -S zmk-usb-logging  -b nice_nano_v2    --  -DSHIELD=kit46_left && cp ./build/left/zephyr/zmk.uf2 /media/weekiat.ang/NICENANO/
+
+
+
+tio /dev/ttyACM0
+sudo xev
+
+Keyboard needs:
+- KSCAN driver
+  from ZephyrOS
+  uses 'zmk,kscan-gpio-matrix' vs 'zmk,kscan-gpio-direct'
+  Kscan -> keyboard scan
+    Detect key press in a connected matrix keyboard OR any device with buttons
+  API
+    kscan_callback_t
+    kscan_config
+    kscan_enable_callback
+- Optional matrix transform
+  Defines how KSCAN row/column events are translated into
+  logical 'key positions'
+- keymap bind key position to <behavior> (key press mod-tap, momentary layer)
+
+Self contained keyboard
+
+Pin control
+- Subsystem that manages multiplexing, configuration and control
+  of pin functions
+- GPIO focuses on basic IO operation, while PINCTRL deal with assigning and
+  configuring pin functionality within the system.
+
+- Microcontroller pins often have multiple possible functions (e.g., GPIO UART I2C SPI, PWM)
+  PINCTRL allows selection of the function that the pin will perform
+- Also also set drive strength slew rate, pull up pull down, IO mode
+
+UDC - USB Device Controller
+
+ble.c seems ok!
+
+GATT (Generic Attribute Profiles)
+- needs value, properties, and permissions
+  Properties (bit value fields)
+  - BT_GATT_CHRC_BROADCAST - allow broadcast of the VALUE
+  - BT_GATT_CHRC_READ - allow READS of value
+  - BT_GATT_CHRC_WRITE_WITHOUT_RESP - allow write of VALUE WITHOUT response
+  - BT_GATT_CHRC_WRITE - allow write WITH response
+  - BT_GATT_CHRC_NOTIFY - allow notification without ack
+  - BT_GATT_CHRC_INDICATE - allow indications of value with acknowledgement
+  - BT_GATT_CHRC_AUTH - allow signed writes to VALUE
+- CCC (Client Characteristic Configuration) descsription for a Characteristic
+
+
+Bluetooth EIR (Extended Inquiery Response)
+- Refers to advertising data and scan response data that devies use to broadcast info about themselves
+
+Bluetooth
+connected -> discovery
+
+send_keyboard_report
+- calls zmk_usb_hid_send_keyboard_report
+- calls zmk_hog_send_keyboard_report
+- called by zmk_endpoints_send_report
+  - calls send_keyboard_report, send_consumer_report
+  - called by hid_listener
+
+Look into zmk_usb_hid_send_keyboard_report
+and zmk_hog_send_keyboard_report
+zmk_usb_hid_send_consumer_report
+zmk_hog_send_consumer_report
+
+HOG - HID over GATT
+
+# CONFIG_ZMK_USB_BOOT is not set
+build/left/zephyr/.config
+
+columns < RC, but still works and compiles
+
+https://github.com/zmkfirmware/zmk/issues/2408
+https://github.com/zmkfirmware/zmk/issues/1273
+
+
+https://github.com/zmkfirmware/zmk/issues/2202
+https://github.com/zmkfirmware/zmk/issues/2158
+https://github.com/zmkfirmware/zmk/issues/1668
+https://github.com/zmkfirmware/zmk/issues/1535
+
+IS_ENABLED(CONFIG_ZMK_SPLIT_SYNC_LAST_ACTIVITY_TIMING_PERIODIC) || IS_ENABLED(CONFIG_ZMK_SPLIT_SYNC_LAST_ACTIVITY_TIMING_ON_EVENT)
+
+
+
+int sync_activity_event_listener(const zmk_event_t *eh) {
+    int32_t current = k_uptime_get();
+
+    struct zmk_sync_activity_event *ev = as_zmk_sync_activity_event(eh);
+    if (ev == NULL) {
+        LOG_ERR("Invalid event type");
+        return -ENOTSUP;
+    }
+
+    activity_last_uptime = current - ev->central_inactive_duration;
+
+    if (activity_state == ZMK_ACTIVITY_IDLE && ev->central_inactive_duration < MAX_IDLE_MS) {
+        LOG_DBG("Syncing state to active to match central device.");
+        return set_state(ZMK_ACTIVITY_ACTIVE);
+    }
+    return 0;
+}
+
+
+    /*
+    HID_USAGE_PAGE(HID_USAGE_GEN_DESKTOP),              // Generic Desktop Page
+    HID_USAGE(HID_USAGE_GD_SYSTEM_CONTROL),             // System Control Collection
+    HID_COLLECTION(HID_COLLECTION_APPLICATION),         // Start of System control collection
+    HID_REPORT_ID(ZMK_HID_REPORT_ID_GENERIC_DESKTOP),   // Set Report ID
+
+    HID_USAGE(HID_USAGE_GD_SYSTEM_SLEEP),               // System Sleep Usage
+    HID_LOGICAL_MIN8(0x00),                             // Logical Minimum (Off)
+    HID_LOGICAL_MAX8(0x01),                             // Logical Maximum (On)
+    HID_REPORT_SIZE(0x01),                              // Each field is 1 bit
+    HID_REPORT_COUNT(0x01),                             // One field for the sleep control
+    HID_INPUT(ZMK_HID_MAIN_VAL_DATA | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+
+    HID_REPORT_SIZE(0x07),                              // 7 bits of padding
+    HID_REPORT_COUNT(0x01),                             // One field of padding
+    HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR | ZMK_HID_MAIN_VAL_ABS),
+    HID_END_COLLECTION,
+
+    HID_INPUT(ZMK_HID_MAIN_VAL_CONST | ZMK_HID_MAIN_VAL_VAR |
+              ZMK_HID_MAIN_VAL_ABS), // Input field for reserved byte (Const, Variable, Absolute)
+
+    A One Shot Control is a push button that triggers a single event or action. A One Shot Control
+    is encoded into a 1-bit value and declared as a Relative, Preferred, Main item with a Logical
+    Minimum and Logical Maximum of 0 and 1, respectively. A 0 to 1 transition initiates an event.
+    Nothing occurs on a 1 to 0 transition but it is required before another event can occur. An
+    example is degauss
+
+    Generic Desktop Page
+    81 System Power Down OSC 4.5
+    82 System Sleep OSC 4.5
+    83 System Wake Up OSC 4.5
+    */
+
+
+bug: MO + toggle layer fails
+
+Base
+0.8 x 0.2
+
+Printed
+0.7 x 0.2ww
+
+
+20x15cm bounding box size
+
+Smaller: 16 x 9
+
+learnt that copper is non-magnetic

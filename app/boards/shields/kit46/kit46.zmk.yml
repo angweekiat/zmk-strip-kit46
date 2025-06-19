@@ -1,0 +1,11 @@
+file_format: "1"
+id: kit46
+name: Kit46
+type: shield
+url: https://github.com/angweekiat/zmk-strip-kit46
+requires: [pro_micro]
+features:
+  - keys
+siblings:
+  - kit46_left
+  - kit46_right
